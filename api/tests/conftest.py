@@ -8,6 +8,7 @@ os.environ.setdefault(
 )
 # HS256 wants >= 32 bytes of key material.
 os.environ.setdefault("JWT_SECRET", "test-secret-0123456789abcdef0123456789abcdef")
+os.environ.setdefault("STORAGE_DIR", "/tmp/traineros-test-storage")
 
 import pytest  # noqa: E402
 from alembic.config import Config  # noqa: E402

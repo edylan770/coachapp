@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app import security
 from app.db import get_db
+from app.models.client import Client
 from app.models.trainer import Trainer
 from app.models.user import User, UserRole
 
@@ -63,3 +64,21 @@ def get_current_trainer(
 
 
 CurrentTrainer = Annotated[Trainer, Depends(get_current_trainer)]
+
+
+def get_current_client(
+    current_user: CurrentUser,
+    db: Annotated[Session, Depends(get_db)],
+) -> Client:
+    """Tenancy anchor for the client app's /me endpoints."""
+    if current_user.role != UserRole.client:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Client role required")
+    client = db.scalar(select(Client).where(Client.user_id == current_user.id))
+    if client is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Client record not found"
+        )
+    return client
+
+
+CurrentClient = Annotated[Client, Depends(get_current_client)]

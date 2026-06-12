@@ -17,6 +17,9 @@ dist/
 .env.*
 !.env.example
 
+# Local object storage (photos/docs)
+storage-data/
+
 # Editors / OS
 .DS_Store
 .idea/

@@ -10,7 +10,11 @@ WORKDIR /srv/api
 COPY . .
 RUN pip install . && chmod +x docker-entrypoint.sh
 
-RUN useradd --create-home appuser
+# Pre-create the storage mount point owned by the app user (named volumes
+# inherit ownership from the image path on first use).
+RUN useradd --create-home appuser && \
+    mkdir -p /srv/api/storage-data && \
+    chown appuser:appuser /srv/api/storage-data
 USER appuser
 
 EXPOSE 8000

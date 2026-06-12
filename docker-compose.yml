@@ -23,8 +23,11 @@ services:
       ACCESS_TOKEN_TTL_MINUTES: ${ACCESS_TOKEN_TTL_MINUTES:-15}
       REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      STORAGE_DIR: /srv/api/storage-data
     ports:
       - "8000:8000"
+    volumes:
+      - api_storage:/srv/api/storage-data
     depends_on:
       db:
         condition: service_healthy
@@ -36,3 +39,4 @@ services:
 
 volumes:
   pgdata:
+  api_storage:

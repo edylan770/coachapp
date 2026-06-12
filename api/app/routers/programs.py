@@ -3,13 +3,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.deps import CurrentTrainer
 from app.models.client import Client
 from app.models.exercise import Exercise
 from app.models.program import Prescription, Program, ProgramBlock, ProgramDay, ProgramWeek
+from app.queries import PROGRAM_FULL_TREE
 from app.schemas.program import (
     ProgramCreate,
     ProgramDetailOut,
@@ -23,20 +24,13 @@ router = APIRouter(prefix="/programs", tags=["programs"])
 
 DbSession = Annotated[Session, Depends(get_db)]
 
-_FULL_TREE = (
-    selectinload(Program.blocks)
-    .selectinload(ProgramBlock.weeks)
-    .selectinload(ProgramWeek.days)
-    .selectinload(ProgramDay.prescriptions),
-)
-
 
 def _get_program_or_404(
     db: Session, trainer_id: uuid.UUID, program_id: uuid.UUID, *, with_tree: bool = False
 ) -> Program:
     query = select(Program).where(Program.id == program_id, Program.trainer_id == trainer_id)
     if with_tree:
-        query = query.options(*_FULL_TREE)
+        query = query.options(*PROGRAM_FULL_TREE)
     program = db.scalar(query)
     if program is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Program not found")

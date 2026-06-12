@@ -2,7 +2,17 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, UniqueConstraint, Uuid, func, text
+from sqlalchemy import (
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+    Uuid,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -52,6 +62,11 @@ class Client(Base):
     # Invite tokens are opaque, stored hashed, and cleared on acceptance.
     invite_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
     invite_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Check-in cadence ("scheduled cadence per client", spec §3); due-date
+    # logic = last check-in + cadence, computed in queries.
+    checkin_cadence_days: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("7")
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

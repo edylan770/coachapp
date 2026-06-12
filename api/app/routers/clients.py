@@ -1,18 +1,22 @@
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app import security
 from app.config import get_settings
 from app.db import get_db
 from app.deps import CurrentTrainer
+from app.models.check_in import CheckIn
 from app.models.client import Client, ClientStatus
+from app.models.workout_log import WorkoutLog
+from app.schemas.check_in import CheckInOut
 from app.schemas.client import ClientCreate, ClientInviteOut, ClientOut, ClientUpdate
+from app.schemas.workout_log import WorkoutLogOut
 
 router = APIRouter(prefix="/clients", tags=["clients"])
 
@@ -130,6 +134,43 @@ def reinvite_client(client_id: uuid.UUID, trainer: CurrentTrainer, db: DbSession
     db.commit()
     db.refresh(client)
     return _invite_response(client, raw_token)
+
+
+@router.get("/{client_id}/workout-logs", response_model=list[WorkoutLogOut])
+def client_workout_logs(
+    client_id: uuid.UUID,
+    trainer: CurrentTrainer,
+    db: DbSession,
+    since: date | None = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+):
+    client = _get_client_or_404(db, trainer.id, client_id)
+    query = (
+        select(WorkoutLog)
+        .where(WorkoutLog.client_id == client.id)
+        .order_by(WorkoutLog.workout_date.desc(), WorkoutLog.created_at.desc())
+        .options(selectinload(WorkoutLog.set_logs))
+        .limit(limit)
+    )
+    if since is not None:
+        query = query.where(WorkoutLog.workout_date >= since)
+    return db.scalars(query).all()
+
+
+@router.get("/{client_id}/check-ins", response_model=list[CheckInOut])
+def client_check_ins(
+    client_id: uuid.UUID,
+    trainer: CurrentTrainer,
+    db: DbSession,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+):
+    client = _get_client_or_404(db, trainer.id, client_id)
+    return db.scalars(
+        select(CheckIn)
+        .where(CheckIn.client_id == client.id)
+        .order_by(CheckIn.check_in_date.desc())
+        .limit(limit)
+    ).all()
 
 
 @router.delete("/{client_id}", status_code=status.HTTP_204_NO_CONTENT)

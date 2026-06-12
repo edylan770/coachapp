@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     access_token_ttl_minutes: int = 15
     refresh_token_ttl_days: int = 30
     invite_ttl_days: int = 14
+    # Object storage (local backend); swap for S3 via app.storage later.
+    storage_dir: str = "./storage-data"
+    max_upload_mb: int = 10
     # Comma-separated browser origins allowed to call the API.
     cors_origins: str = "http://localhost:5173"
 

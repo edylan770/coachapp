@@ -18,7 +18,7 @@ content for trainer approval. Full product spec: [PROJECT_SPEC.md](PROJECT_SPEC.
 
 - [x] **Phase 0** — monorepo scaffold, docker compose (Postgres+pgvector, API), email/password auth (JWT access + rotating refresh tokens), Alembic baseline migration, pytest suite
 - [x] **Phase 1** — core schema (trainers, clients, exercises, programs→blocks→weeks→days→prescriptions), trainer-scoped CRUD APIs, invite-based client onboarding, program builder UI (blocks/weeks/days/prescriptions editor, templates, duplicate, assign-to-client)
-- [ ] Phase 2 — mobile app: offline workout logging, check-in submission
+- [x] **Phase 2** — workout_logs/set_logs/check_ins schema, client-facing `/me` API (idempotent offline sync, check-ins with photos), object-storage interface (local backend), Expo client app (offline logging with SQLite queue, rest timer, check-in flow, program overview)
 - [ ] Phase 3 — corpus ingestion + methodology interview
 - [ ] Phase 4 — AI draft pipeline (hybrid retrieval, citations, review queue, edit-diff)
 - [ ] Phase 5 — messaging, metrics/trends, AI settings UI, polish
@@ -99,6 +99,34 @@ work in Phases 3–4 builds on):
 - Prescriptions store typed JSONB schemes validated by Pydantic discriminated
   unions: rep schemes `fixed | range | amrap | duration`, load schemes
   `absolute | percent_1rm | rpe | rir | bodyweight`.
+- Trainer reads of client activity: `GET /clients/{id}/workout-logs`,
+  `GET /clients/{id}/check-ins`.
+
+## Client app API (Phase 2)
+
+Endpoints for the mobile app (client access token, scoped via the caller's
+client record):
+
+- `GET /me/program` — assigned program tree + referenced exercises (the app
+  caches this in SQLite for offline use)
+- `POST /me/sync` — idempotent batch upsert of workout logs (client-generated
+  UUIDs for logs and sets; per-item created/updated/rejected results; stale
+  program/prescription references are nulled, with the prescribed snapshot
+  preserved on each set log)
+- `GET /me/workout-logs`, `GET /me/check-ins` — history
+- `POST /me/check-ins/photos` (multipart, ≤10MB, jpeg/png/webp/heic) then
+  `POST /me/check-ins` — weight, measurements, adherence (training/nutrition/
+  sleep 1–5), photo keys, free-text; unique per (client, date); retry-safe via
+  optional client-generated id
+- `GET /files/{key}` — serves photos to the owning client or their trainer only
+
+Photos live behind an object-storage interface (`app/storage.py`); v1 ships a
+local-filesystem backend (compose volume `api_storage`), with S3 as a drop-in
+later.
+
+The Expo app lives in `mobile/` (own package, not an npm workspace — Metro
+prefers it that way); see `mobile/README.md` for run instructions and the
+offline sync design.
 
 ## Decisions made in Phase 0 (flag if you'd choose differently)
 
