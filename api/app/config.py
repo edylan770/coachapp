@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_ttl_minutes: int = 15
     refresh_token_ttl_days: int = 30
+    invite_ttl_days: int = 14
     # Comma-separated browser origins allowed to call the API.
     cors_origins: str = "http://localhost:5173"
 

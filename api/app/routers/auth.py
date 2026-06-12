@@ -10,6 +10,8 @@ from app import security
 from app.config import get_settings
 from app.db import get_db
 from app.deps import CurrentUser
+from app.models.client import Client, ClientStatus
+from app.models.trainer import Trainer
 from app.models.user import RefreshToken, User, UserRole
 from app.schemas.auth import (
     LoginRequest,
@@ -18,6 +20,7 @@ from app.schemas.auth import (
     TokenPair,
     UserOut,
 )
+from app.schemas.client import AcceptInviteRequest
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -52,14 +55,19 @@ def _issue_token_pair(db: Session, user: User) -> TokenPair:
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def register(payload: RegisterRequest, db: DbSession) -> User:
     # Public signup is trainer-only by design: clients are invited by their
-    # trainer (Phase 1), never self-registered.
+    # trainer, never self-registered.
+    email = _normalize_email(payload.email)
     user = User(
-        email=_normalize_email(payload.email),
+        email=email,
         password_hash=security.hash_password(payload.password),
         role=UserRole.trainer,
     )
     db.add(user)
     try:
+        db.flush()
+        db.add(
+            Trainer(user_id=user.id, display_name=payload.display_name or email.split("@")[0])
+        )
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -69,6 +77,46 @@ def register(payload: RegisterRequest, db: DbSession) -> User:
         ) from None
     db.refresh(user)
     return user
+
+
+@router.post("/accept-invite", response_model=TokenPair, status_code=status.HTTP_201_CREATED)
+def accept_invite(payload: AcceptInviteRequest, db: DbSession) -> TokenPair:
+    """Public endpoint: a client redeems their (one-time) invite token, gets an
+    account, and is logged straight in."""
+    invalid = HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired invite"
+    )
+    client = db.scalar(
+        select(Client).where(
+            Client.invite_token_hash == security.hash_refresh_token(payload.token)
+        )
+    )
+    if (
+        client is None
+        or client.user_id is not None
+        or client.invite_expires_at is None
+        or client.invite_expires_at <= datetime.now(UTC)
+    ):
+        raise invalid
+    user = User(
+        email=client.email,
+        password_hash=security.hash_password(payload.password),
+        role=UserRole.client,
+    )
+    db.add(user)
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this email already exists",
+        ) from None
+    client.user_id = user.id
+    client.status = ClientStatus.active
+    client.invite_token_hash = None
+    client.invite_expires_at = None
+    return _issue_token_pair(db, user)
 
 
 @router.post("/login", response_model=TokenPair)

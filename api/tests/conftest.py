@@ -56,8 +56,16 @@ def clean_tables(migrated_database):
     yield
     from app.db import engine
 
+    # DELETE rather than TRUNCATE ... CASCADE: truncating trainers would wipe
+    # the exercises table entirely, losing the seeded global library. Order
+    # matters: programs first (frees prescriptions' RESTRICT on exercises).
     with engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE refresh_tokens, users CASCADE"))
+        conn.execute(text("DELETE FROM programs"))
+        conn.execute(text("DELETE FROM exercises WHERE trainer_id IS NOT NULL"))
+        conn.execute(text("DELETE FROM clients"))
+        conn.execute(text("DELETE FROM trainers"))
+        conn.execute(text("DELETE FROM refresh_tokens"))
+        conn.execute(text("DELETE FROM users"))
 
 
 @pytest.fixture()
@@ -77,3 +85,16 @@ def db_session():
         yield session
     finally:
         session.close()
+
+
+@pytest.fixture()
+def make_trainer(client):
+    """Registers a trainer and returns auth headers for them."""
+
+    def _make(email: str = "coach@example.com", password: str = "supersecret1") -> dict[str, str]:
+        response = client.post("/auth/register", json={"email": email, "password": password})
+        assert response.status_code == 201, response.text
+        tokens = client.post("/auth/login", json={"email": email, "password": password}).json()
+        return {"Authorization": f"Bearer {tokens['access_token']}"}
+
+    return _make

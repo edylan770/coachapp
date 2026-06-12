@@ -10,6 +10,8 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     # bcrypt only reads the first 72 bytes; cap instead of silently truncating.
     password: str = Field(min_length=8, max_length=72)
+    # Trainer profile name; defaults to the email local part if omitted.
+    display_name: str | None = Field(default=None, min_length=1, max_length=120)
 
 
 class LoginRequest(BaseModel):

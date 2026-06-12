@@ -4,11 +4,13 @@ from typing import Annotated
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import security
 from app.db import get_db
-from app.models.user import User
+from app.models.trainer import Trainer
+from app.models.user import User, UserRole
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -39,3 +41,25 @@ def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+def get_current_trainer(
+    current_user: CurrentUser,
+    db: Annotated[Session, Depends(get_db)],
+) -> Trainer:
+    """Tenancy anchor: every trainer-facing endpoint resolves the caller to a
+    Trainer row and filters all queries by its id. Never trust ids from the
+    request body for scoping."""
+    if current_user.role != UserRole.trainer:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Trainer role required"
+        )
+    trainer = db.scalar(select(Trainer).where(Trainer.user_id == current_user.id))
+    if trainer is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Trainer profile not found"
+        )
+    return trainer
+
+
+CurrentTrainer = Annotated[Trainer, Depends(get_current_trainer)]

@@ -1,1 +1,25 @@
 @import "tailwindcss";
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center rounded-md border border-slate-700 px-2.5 py-1 text-sm text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center rounded-md border border-red-900 px-2.5 py-1 text-sm text-red-400 hover:bg-red-950 disabled:opacity-50;
+  }
+  .input {
+    @apply rounded-md border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500 focus:outline-none;
+  }
+  .select {
+    @apply rounded-md border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-slate-100 focus:border-emerald-500 focus:outline-none;
+  }
+  .card {
+    @apply rounded-lg border border-slate-800 bg-slate-900/60 p-4;
+  }
+  .label {
+    @apply mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400;
+  }
+}
