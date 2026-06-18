@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+.expo/
+
+# Env & secrets — never commit real env files
+.env
+.env.*
+!.env.example
+
+# Local object storage (photos/docs)
+storage-data/
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
